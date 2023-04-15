@@ -1,14 +1,13 @@
 {
   "name": "wasm-oci",
-  "version": "0.1.1.pre",
+  "version": "0.1.1",
   "description": "Library for transferring WASM files to container registry",
   "scripts": {
     "test": "jest --coverage",
     "watch": "jest --watchAll --coverage",
     "lint": "eslint src/**/*.ts",
     "build": "tsc",
-    "ci": "npm run test && npm run build",
-    "publish": "npm run ci && npm publish"
+    "ci": "npm run test && npm run build"
   },
   "dependencies": {
     "typed-rest-client": "^1.8.9"
