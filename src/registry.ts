@@ -7,21 +7,7 @@ import { Scope } from './oci/scope'
 import { Authorization } from './oci/authorization'
 import { isSuccessful } from './http/status'
 
-export interface WasmRegistry {
-  push(wasm: WasmImage): Promise<void>
-  pull(image: string): Promise<WasmImage>
-}
-
-export async function createWasmRegistry(workdir: string): Promise<WasmRegistry> {
-  try {
-    await fs.access(workdir, fs.constants.W_OK)
-  } catch (e) {
-    throw new InvalidWorkdir(workdir, e)
-  }
-  return new WorkdirWasmRegistry(workdir)
-}
-
-class WorkdirWasmRegistry implements WasmRegistry {
+export class WasmRegistry {
   private workdir: string
 
   constructor(workdir: string) {
@@ -29,10 +15,8 @@ class WorkdirWasmRegistry implements WasmRegistry {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  push(_wasm: WasmImage): Promise<void> {
-    return new Promise((_resolve, reject) => {
-      reject(new NotImplemented())
-    })
+  push(wasm: WasmImage): Promise<void> {
+    return Promise.reject(new NotImplemented())
   }
 
   pull(image: string): Promise<WasmImage> {
@@ -41,13 +25,30 @@ class WorkdirWasmRegistry implements WasmRegistry {
     return this.fetchImage(im)
   }
 
+  private async verifyWorkdir(): Promise<void> {
+    try {
+      await fs.stat(this.workdir)
+    } catch(e) {
+      // directory does not exist, should be ok to create it
+      return
+    }
+    try {
+      await fs.access(this.workdir, fs.constants.W_OK)
+    } catch (e) {
+      
+      throw new InvalidWorkdir(this.workdir, e)
+    }
+  }
+
   private async fetchImage(im: Image): Promise<WasmImage> {
+    await this.verifyWorkdir()
+
     const reg = new Registry(im.registry)
 
     const auth = await this.authorize(im, reg)
 
     const manifest = await reg.manifest(im.name, im.reference(), auth)
-    
+
     if (manifest.layers.length != 1) {
       throw new InvalidImage(im, `Want one layer, got: ${manifest.layers.length}`)
     }
@@ -71,13 +72,13 @@ class WorkdirWasmRegistry implements WasmRegistry {
     if (st.size != layer.size) {
       await fs.rm(file)
       throw new InvalidImage(im, `Want size ${layer.size}, got: ${st.size}`)
-    } 
+    }
 
     return new WasmImage(im, file)
   }
 
   private async authorize(im: Image, reg: Registry): Promise<Authorization> {
-    let auth : Authorization
+    let auth: Authorization
     try {
       await reg.check()
     } catch (e) {
