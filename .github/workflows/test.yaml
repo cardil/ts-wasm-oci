@@ -1,0 +1,35 @@
+---
+
+name: Tests
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - '**'
+
+env:
+  NODE_VERSION: 16
+  FORCE_COLOR: 1
+
+jobs:
+  test:
+    name: npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # fetch all branches and tags
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Test
+        run: |
+          npm install
+          npm run ci
