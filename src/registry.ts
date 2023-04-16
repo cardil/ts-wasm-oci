@@ -1,47 +1,40 @@
-import { Image, WasmImage, WASM_MEDIA_TYPE } from './image'
+import { Image, WasmImage, isValidWasmType } from './image'
 import fs from 'fs/promises'
 import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { InvalidRestResponse, Registry } from './oci/registry'
 import { Scope } from './oci/scope'
-import { Authorization } from './oci/authorization'
-import { StatusCode, statusOf } from './http/status'
+import { AuthType, Authorization } from './oci/auth'
+import { statusOf } from './http/status'
 import { calcDigest } from './hash/digest'
 
+/**
+ * WasmRegistry is a main class for interacting with wasm images. It provides
+ * methods for pushing and pulling wasm images from remote registries.
+ */
 export class WasmRegistry {
   private workdir: string
 
+  /**
+   * Creates a new WasmRegistry instance. The workdir is used to store
+   * downloaded wasm files.
+   */
   constructor(workdir: string) {
     this.workdir = workdir
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  push(wasm: WasmImage): Promise<void> {
-    return Promise.reject(new NotImplemented())
+  async push(wasm: WasmImage): Promise<void> {
+    throw new NotImplemented()
   }
 
-  pull(image: string): Promise<WasmImage> {
-    const im = Image.parse(image)
-
-    return this.fetchImage(im)
-  }
-
-  private async verifyWorkdir(): Promise<void> {
-    try {
-      await fs.stat(this.workdir)
-    } catch (e) {
-      // directory does not exist, should be ok to create it
-      return
-    }
-    try {
-      await fs.access(this.workdir, fs.constants.W_OK)
-    } catch (e) {
-
-      throw new InvalidWorkdir(this.workdir, e)
-    }
-  }
-
-  private async fetchImage(im: Image): Promise<WasmImage> {
+  /**
+   * Pulls the wasm image from the remote registry
+   * 
+   * @param im image to pull from remote registry
+   * @returns a WasmImage with the file path to the downloaded wasm file
+   */
+  async pull(im: Image): Promise<WasmImage> {
     await this.verifyWorkdir()
 
     const reg = new Registry(im.registry)
@@ -54,8 +47,9 @@ export class WasmRegistry {
       throw new InvalidImage(im, `Want one layer, got: ${manifest.layers.length}`)
     }
     const layer = manifest.layers[0]
-    if (layer.mediaType !== WASM_MEDIA_TYPE) {
-      throw new InvalidImage(im, `Want media type "${WASM_MEDIA_TYPE}", got: "${layer.mediaType}"`)
+    if (!isValidWasmType(layer.mediaType)) {
+      throw new InvalidImage(im, 
+        `Want WASM media type, got: "${layer.mediaType}"`)
     }
 
     const file = `${this.workdir}/${slug(im.name)}-${slug(im.reference())}.wasm`
@@ -90,19 +84,40 @@ export class WasmRegistry {
     return new WasmImage(im, file)
   }
 
-  private async authorize(im: Image, reg: Registry): Promise<Authorization> {
-    let auth: Authorization
+  private async verifyWorkdir(): Promise<void> {
     try {
-      await reg.check()
+      await fs.stat(this.workdir)
     } catch (e) {
-      if (!(e instanceof InvalidRestResponse)
-        || !StatusCode.UNAUTHORIZED.equals((e as InvalidRestResponse).cause)) {
-        throw e
-      }
-      auth = await reg.authorize(new Scope(im.name, 'pull'))
+      // directory does not exist, should be ok to create it
+      return
     }
+    try {
+      await fs.access(this.workdir, fs.constants.W_OK)
+    } catch (e) {
 
-    return auth
+      throw new InvalidWorkdir(this.workdir, e)
+    }
+  }
+
+  private async authorize(im: Image, reg: Registry): Promise<Authorization> {
+    const state = await reg.check()
+
+    if (state.loggedIn) {
+      // TODO: implement login
+      throw new NotImplemented()
+    }
+    switch (state.auth.type) {
+      case AuthType.Basic:
+        // TODO: implement basic auth?
+        throw new NotImplemented()
+      case AuthType.Docker:
+        return await reg.dockerAuthorize(new Scope(im.name, 'pull'))
+      case AuthType.Oauth2:
+        return await reg.oauth2Authorize(new Scope(im.name, 'pull'))
+      case AuthType.Unsupported:
+      default:
+        throw state.auth
+    }
   }
 }
 
@@ -120,7 +135,7 @@ export class InvalidWorkdir extends Error {
   workdir: string
   cause: Error
   constructor(workdir: string, cause: Error) {
-    super(`Invalid workdir: ${workdir}: ${cause.message}`)
+    super(`Invalid workdir: ${workdir}: ${cause}`)
     this.workdir = workdir
     this.cause = cause
   }
