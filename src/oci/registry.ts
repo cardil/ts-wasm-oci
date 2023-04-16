@@ -4,16 +4,16 @@ import { Authorization, asString } from './authorization'
 import { Scope } from './scope'
 import { Manifest } from './manifest'
 import { IHeaders, IHttpClientResponse } from 'typed-rest-client/Interfaces'
-import { isSuccessful } from '../http/status'
+import { StatusCode, statusOf } from '../http/status'
 
 const ua = `${pkg.name}/${pkg.version}`
 const acceptedManifestType = 'application/vnd.oci.image.manifest.v1+json'
 
 export class InvalidRestResponse extends Error {
-  code: number
-  constructor(code: number, message: string) {
-    super(message)
-    this.code = code
+  cause: StatusCode | Error
+  constructor(cause: StatusCode | Error, message: string) {
+    super(message + `: ${cause}`)
+    this.cause = cause
   }
 }
 
@@ -41,11 +41,9 @@ export class Registry {
       }
     } : undefined
     const res = await this.client.client.get(`${this.baseUrl}/v2/`, opts)
-    if (!isSuccessful(res)) {
-      throw new InvalidRestResponse(
-        res.message.statusCode,
-        'Failed to check version'
-      )
+    const status = statusOf(res)
+    if (!status.isSuccessful()) {
+      throw new InvalidRestResponse(status, `Failed to ping registry: ${this.service}`)
     }
   }
 
@@ -74,8 +72,9 @@ export class Registry {
       }
     }
     const res = await this.client.get<Authorization>('/v2/auth', opts)
-    if (!isSuccessful(res)) {
-      throw new InvalidRestResponse(res.statusCode, 'Failed to authorize')
+    const status = statusOf(res)
+    if (!status.isSuccessful()) {
+      throw new InvalidRestResponse(status, 'Failed to authorize')
     }
     return res.result
   }
@@ -94,9 +93,9 @@ export class Registry {
     }
 
     const res = await this.client.get<Manifest>(`/v2/${repository}/manifests/${reference}`, opts)
-    if (!isSuccessful(res)) {
-      throw new InvalidRestResponse(res.statusCode,
-        `Failed to get manifest: ${res.statusCode}`)
+    const status = statusOf(res)
+    if (!status.isSuccessful()) {
+      throw new InvalidRestResponse(status, 'Failed to get manifest')
     }
     return res.result
   }
