@@ -5,7 +5,8 @@ import { createWriteStream } from 'fs'
 import { InvalidRestResponse, Registry } from './oci/registry'
 import { Scope } from './oci/scope'
 import { Authorization } from './oci/authorization'
-import { isSuccessful } from './http/status'
+import { StatusCode, statusOf } from './http/status'
+import { calcDigest } from './hash/digest'
 
 export class WasmRegistry {
   private workdir: string
@@ -28,14 +29,14 @@ export class WasmRegistry {
   private async verifyWorkdir(): Promise<void> {
     try {
       await fs.stat(this.workdir)
-    } catch(e) {
+    } catch (e) {
       // directory does not exist, should be ok to create it
       return
     }
     try {
       await fs.access(this.workdir, fs.constants.W_OK)
     } catch (e) {
-      
+
       throw new InvalidWorkdir(this.workdir, e)
     }
   }
@@ -61,17 +62,29 @@ export class WasmRegistry {
     await fs.mkdir(this.workdir, { recursive: true })
 
     const res = await reg.blob(im.name, layer.digest, auth)
-    if (!isSuccessful(res)) {
-      throw new InvalidRestResponse(res.message.statusCode, 'Failed to fetch blob')
+    const status = statusOf(res)
+    if (!status.isSuccessful()) {
+      throw new InvalidRestResponse(status, 'Failed to fetch blob')
     }
 
     const writer = createWriteStream(file)
-    await pipeline(res.message, writer)
+    try {
+      await pipeline(res.message, writer)
+    } catch (e) {
+      throw new InvalidRestResponse(e, 'Failed to fetch blob')
+    }
 
     const st = await fs.stat(file)
     if (st.size != layer.size) {
       await fs.rm(file)
       throw new InvalidImage(im, `Want size ${layer.size}, got: ${st.size}`)
+    }
+
+    const [algorithm, wantDigest] = layer.digest.split(':')
+    const gotDigest = await calcDigest(algorithm, file)
+    if (gotDigest != wantDigest) {
+      await fs.rm(file)
+      throw new InvalidImage(im, `Want digest ${layer.digest}, got: ${algorithm}:${gotDigest}`)
     }
 
     return new WasmImage(im, file)
@@ -83,7 +96,7 @@ export class WasmRegistry {
       await reg.check()
     } catch (e) {
       if (!(e instanceof InvalidRestResponse)
-        || (e as InvalidRestResponse).code !== 401) {
+        || !StatusCode.UNAUTHORIZED.equals((e as InvalidRestResponse).cause)) {
         throw e
       }
       auth = await reg.authorize(new Scope(im.name, 'pull'))
