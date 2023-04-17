@@ -1,6 +1,6 @@
 {
   "name": "wasm-oci",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Library for transferring WASM files to container registry",
   "scripts": {
     "test": "jest --coverage",
