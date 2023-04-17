@@ -8,7 +8,10 @@ export class StatusCode {
   static CREATED = new StatusCode(201, 'Created')
   static MULTIPLE_CHOICES = new StatusCode(300, 'Multiple Choices')
   static MOVED_PERMANENTLY = new StatusCode(301, 'Moved Permanently')
+  static BAD_REQUEST = new StatusCode(400, 'Bad Request')
   static UNAUTHORIZED = new StatusCode(401, 'Unauthorized')
+  static FORBIDDEN = new StatusCode(403, 'Forbidden')
+  static NOT_FOUND = new StatusCode(404, 'Not Found')
   static INTERNAL_SERVER_ERROR = new StatusCode(500, 'Internal Server Error')
 
   code: number
@@ -41,7 +44,10 @@ export class StatusCode {
       StatusCode.CREATED,
       StatusCode.MULTIPLE_CHOICES,
       StatusCode.MOVED_PERMANENTLY,
+      StatusCode.BAD_REQUEST,
       StatusCode.UNAUTHORIZED,
+      StatusCode.FORBIDDEN,
+      StatusCode.NOT_FOUND,
       StatusCode.INTERNAL_SERVER_ERROR
     ]
     for (const status of known) {
