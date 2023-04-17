@@ -8,8 +8,8 @@
     "lint": "eslint src/**/*.ts",
     "build": "tsc",
     "ci": "npm run test && npm run build",
-    "prepare" : "npm run build",
-    "prepublishOnly" : "npm run lint && npm test"
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "dependencies": {
     "typed-rest-client": "^1.8.9"
