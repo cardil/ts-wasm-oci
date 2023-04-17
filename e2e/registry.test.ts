@@ -6,7 +6,7 @@ import { WasmRegistry } from '../src/registry'
 import { Image } from '../src/image'
 
 const debug = process.env.NODE_OPTIONS?.includes('debug')
-const maybe = debug || process.env.JEST_ALLOW_INTEG ? describe : describe.skip
+const maybe = debug || process.env.JEST_PROFILE == 'e2e' ? describe : describe.skip
 
 const cloudeventsImageName = 'quay.io/cardil/cloudevents-pretty-print'
 const cloudeventsImage = Image.parse(cloudeventsImageName)

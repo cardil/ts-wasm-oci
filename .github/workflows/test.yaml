@@ -18,8 +18,11 @@ env:
 
 jobs:
   test:
-    name: npm
+    if: github.event.name == 'pull_request' || github.repository.owner != 'cardil'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile: ['e2e', 'unit']
     steps:
       - uses: actions/checkout@v3
         with:
@@ -32,4 +35,5 @@ jobs:
       - name: Test
         run: |
           npm install
-          npm run ci
+          JEST_PROFILE=${{ matrix.profile }} npm run ci
+
