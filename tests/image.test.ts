@@ -26,6 +26,15 @@ describe('Image', () => {
       
       expect(() => Image.parse(image)).toThrow(InvalidImageSpec)
     })
+
+    test('different registry', () => {
+      const image = 'wasmcloud.azurecr.io/echo:0.3.4'
+      const ref = Image.parse(image)
+      expect(ref.registry).toBe('wasmcloud.azurecr.io')
+      expect(ref.name).toBe('echo')
+      expect(ref.tag).toBe('0.3.4')
+      expect(ref.hash).toBeUndefined()
+    })
   })
 
   describe('toString', () => {

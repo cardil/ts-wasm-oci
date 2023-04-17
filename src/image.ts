@@ -2,6 +2,7 @@
 const re = /^(?:([a-z0-9_.-]+)\/)?([a-z0-9_./-]+)(?::([a-z0-9_.-]+))?(?:@sha256:([a-f0-9]+))?$/
 
 export const WASM_MEDIA_TYPE = 'application/vnd.wasm.content.layer.v1+wasm'
+const WASM_MEDIA_TYPE_LEGACY = 'application/vnd.module.wasm.content.layer.v1+wasm'
 
 export class WasmImage {
   image: Image
@@ -31,10 +32,10 @@ export class Image {
     if (!registry) {
       registry = 'docker.io'
     }
-    if (name.indexOf('/') === -1) {
+    if (registry === 'docker.io' && name.indexOf('/') === -1) {
       name = `library/${name}`
     }
-    if (!tag) {
+    if (!tag && !hash) {
       tag = 'latest'
     }
     this.registry = registry
@@ -67,4 +68,8 @@ export class Image {
     }
     return n
   }
+}
+
+export function isValidWasmType(type: string): boolean {
+  return type === WASM_MEDIA_TYPE || type === WASM_MEDIA_TYPE_LEGACY
 }
