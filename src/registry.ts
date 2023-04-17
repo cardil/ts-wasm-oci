@@ -4,7 +4,7 @@ import { pipeline } from 'stream/promises'
 import { createWriteStream } from 'fs'
 import { InvalidRestResponse, Registry } from './oci/registry'
 import { Scope } from './oci/scope'
-import { AuthType, Authorization } from './oci/auth'
+import { AuthType, IllegalAuth } from './oci/auth'
 import { statusOf } from './http/status'
 import { calcDigest } from './hash/digest'
 
@@ -39,9 +39,9 @@ export class WasmRegistry {
 
     const reg = new Registry(im.registry)
 
-    const auth = await this.authorize(im, reg)
+    await this.authorize(im, reg)
 
-    const manifest = await reg.manifest(im.name, im.reference(), auth)
+    const manifest = await reg.manifest(im.name, im.reference())
 
     if (manifest.layers.length != 1) {
       throw new InvalidImage(im, `Want one layer, got: ${manifest.layers.length}`)
@@ -55,7 +55,7 @@ export class WasmRegistry {
     const file = `${this.workdir}/${slug(im.name)}-${slug(im.reference())}.wasm`
     await fs.mkdir(this.workdir, { recursive: true })
 
-    const res = await reg.blob(im.name, layer.digest, auth)
+    const res = await reg.blob(im.name, layer.digest)
     const status = statusOf(res)
     if (!status.isSuccessful()) {
       throw new InvalidRestResponse(status, 'Failed to fetch blob')
@@ -99,24 +99,21 @@ export class WasmRegistry {
     }
   }
 
-  private async authorize(im: Image, reg: Registry): Promise<Authorization> {
+  private async authorize(im: Image, reg: Registry): Promise<void> {
     const state = await reg.check()
 
     if (state.loggedIn) {
       // TODO: implement login
       throw new NotImplemented()
     }
+
     switch (state.auth.type) {
-      case AuthType.Basic:
-        // TODO: implement basic auth?
-        throw new NotImplemented()
       case AuthType.Docker:
         return await reg.dockerAuthorize(new Scope(im.name, 'pull'))
       case AuthType.Oauth2:
         return await reg.oauth2Authorize(new Scope(im.name, 'pull'))
-      case AuthType.Unsupported:
       default:
-        throw state.auth
+        throw new IllegalAuth(state)
     }
   }
 }

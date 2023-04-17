@@ -12,6 +12,7 @@ const cloudeventsImageName = 'quay.io/cardil/cloudevents-pretty-print'
 const cloudeventsImage = Image.parse(cloudeventsImageName)
 const wasmcloudImageName = 'wasmcloud.azurecr.io/echo:0.3.4'
 const wasmcloudImage = Image.parse(wasmcloudImageName)
+const timeout = 90_000 // 90 seconds
 
 maybe('e2e', () => {
   let workdir: string
@@ -32,7 +33,7 @@ maybe('e2e', () => {
         const wasm = await reg.pull(cloudeventsImage)
 
         expect(wasm.file).toBeDefined()
-      })
+      }, timeout)
 
       test('wasmcloud image', async () => {
         const reg = new WasmRegistry(workdir)
@@ -40,7 +41,7 @@ maybe('e2e', () => {
         const wasm = await reg.pull(wasmcloudImage)
 
         expect(wasm.file).toBeDefined()
-      })
+      }, timeout)
     })
   })
 })

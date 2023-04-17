@@ -4,10 +4,8 @@ export interface AuthState {
 }
 
 export enum AuthType {
-  Basic,
   Oauth2,
-  Docker,
-  Unsupported
+  Docker
 }
 
 export interface Oauth2Authorization {
@@ -30,7 +28,10 @@ export class WwwAuthenticate {
     this.options = options
   }
 
-  static parse(auth: string): WwwAuthenticate {
+  static parse(auth: string): WwwAuthenticate | undefined {
+    if (!auth) {
+      return undefined
+    }
     const [type, options] = auth.split(' ')
     const res = new Map<string, string>()
     if (options) {
@@ -41,14 +42,20 @@ export class WwwAuthenticate {
       }
     }
     switch (type) {
-      case 'Basic':
-        return new WwwAuthenticate(AuthType.Basic, res)
       case 'Bearer':
         if (res.get('realm').endsWith('/oauth2/token')) {
           return new WwwAuthenticate(AuthType.Oauth2, res)
         }
         return new WwwAuthenticate(AuthType.Docker, res)
     }
-    return new WwwAuthenticate(AuthType.Unsupported, res)
+    throw new IllegalAuth(auth)
+  }
+}
+
+export class IllegalAuth extends Error {
+  auth: string | AuthState
+  constructor(auth: string | AuthState) {
+    super(`Illegal auth: "${auth}"`)
+    this.auth = auth
   }
 }

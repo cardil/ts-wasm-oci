@@ -1,4 +1,6 @@
 import { IRequestOptions, RestClient } from 'typed-rest-client'
+import { BearerCredentialHandler } from 'typed-rest-client/handlers/bearertoken'
+import ifm from 'typed-rest-client/Interfaces'
 import * as pkg from '../../package.json'
 import { AuthState, Authorization, Oauth2Authorization, WwwAuthenticate, asString } from './auth'
 import { Scope } from './scope'
@@ -25,13 +27,13 @@ export class Registry {
   constructor(registry: string, schema = 'https') {
     this.service = registry
     this.baseUrl = `${schema}://${registry}`
-    this.client = new RestClient(ua, this.baseUrl,
-      [], {
+    const opts = {
       allowRedirects: true,
       headers: {
         'Docker-Distribution-API-Version': 'registry/2.0'
-      }
-    })
+      },
+    } as ifm.IRequestOptions
+    this.client = new RestClient(ua, this.baseUrl, [], opts)
   }
 
   async check(auth?: Authorization): Promise<AuthState> {
@@ -63,46 +65,37 @@ export class Registry {
     service?: string,
     auth?: Authorization,
     account?: string
-  ): Promise<Authorization> {
+  ): Promise<void> {
     const opts = this.authOptions(scope, service, auth, account)
     const res = await this.client.get<Oauth2Authorization>('/oauth2/token', opts)
     const status = statusOf(res)
     if (!status.isSuccessful()) {
       throw new InvalidRestResponse(status, 'Failed to authorize')
     }
-    return {
+    return this.useAuth({
       token: res.result.access_token,
-    }
+    })
   }
-  
+
   async dockerAuthorize(
     scope: Scope,
     service?: string,
     auth?: Authorization,
     account?: string
-  ): Promise<Authorization> {
+  ): Promise<void> {
     const opts = this.authOptions(scope, service, auth, account)
     const res = await this.client.get<Authorization>('/v2/auth', opts)
     const status = statusOf(res)
     if (!status.isSuccessful()) {
       throw new InvalidRestResponse(status, 'Failed to authorize')
     }
-    return res.result
+    return this.useAuth(res.result)
   }
 
-  async manifest(
-    repository: string,
-    reference: string,
-    auth?: Authorization
-  ): Promise<Manifest> {
+  async manifest(repository: string, reference: string): Promise<Manifest> {
     const opts: IRequestOptions = {
       acceptHeader: acceptedManifestType,
-      additionalHeaders: {}
     }
-    if (auth) {
-      opts.additionalHeaders.Authorization = asString(auth)
-    }
-
     const res = await this.client.get<Manifest>(`/v2/${repository}/manifests/${reference}`, opts)
     const status = statusOf(res)
     if (!status.isSuccessful()) {
@@ -111,13 +104,16 @@ export class Registry {
     return res.result
   }
 
-  async blob(repository: string, digest: string, auth?: Authorization): Promise<IHttpClientResponse> {
+  async blob(repository: string, digest: string): Promise<IHttpClientResponse> {
     const headers: IHeaders = {}
-    if (auth) {
-      headers.Authorization = asString(auth)
-    }
     const http = this.client.client
-    return http.get(`${this.baseUrl}/v2/${repository}/blobs/${digest}`, headers)
+    const url = `${this.baseUrl}/v2/${repository}/blobs/${digest}`
+    return http.get(url, headers)
+  }
+
+  private useAuth(auth: Authorization) {
+    const handler = new BearerCredentialHandler(auth.token)
+    this.client.client.handlers.push(handler)
   }
 
   private authOptions(
@@ -125,7 +121,7 @@ export class Registry {
     service?: string,
     auth?: Authorization,
     account?: string
-  ) : IRequestOptions {
+  ): IRequestOptions {
     if (service === undefined) {
       service = this.service
     }
