@@ -8,10 +8,6 @@ import { Image } from '../src/image'
 const debug = process.env.NODE_OPTIONS?.includes('debug')
 const maybe = debug || process.env.JEST_PROFILE == 'e2e' ? describe : describe.skip
 
-const cloudeventsImageName = 'quay.io/cardil/cloudevents-pretty-print'
-const cloudeventsImage = Image.parse(cloudeventsImageName)
-const wasmcloudImageName = 'wasmcloud.azurecr.io/echo:0.3.4'
-const wasmcloudImage = Image.parse(wasmcloudImageName)
 const timeout = 90_000 // 90 seconds
 
 maybe('e2e', () => {
@@ -30,15 +26,19 @@ maybe('e2e', () => {
       test('cloudevents image', async () => {
         const reg = new WasmRegistry(workdir)
 
-        const wasm = await reg.pull(cloudeventsImage)
+        const imageName = 'quay.io/cardil/cloudevents-pretty-print'
+        const imageSpec = Image.parse(imageName)
+        const wasm = await reg.pull(imageSpec)
 
         expect(wasm.file).toBeDefined()
       }, timeout)
 
-      test('wasmcloud image', async () => {
+      test('reverse-text image', async () => {
         const reg = new WasmRegistry(workdir)
 
-        const wasm = await reg.pull(wasmcloudImage)
+        const imageName = 'quay.io/cardil/knative/serving/wasm/example/reverse-text'
+        const imageSpec = Image.parse(imageName)
+        const wasm = await reg.pull(imageSpec)
 
         expect(wasm.file).toBeDefined()
       }, timeout)
