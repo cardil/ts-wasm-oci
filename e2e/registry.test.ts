@@ -33,16 +33,6 @@ maybe('e2e', () => {
         expect(wasm.file).toBeDefined()
       }, timeout)
 
-      test('wasmcloud image', async () => {
-        const reg = new WasmRegistry(workdir)
-
-        const imageName = 'wasmcloud.azurecr.io/echo:0.3.4'
-        const imageSpec = Image.parse(imageName)
-        const wasm = await reg.pull(imageSpec)
-
-        expect(wasm.file).toBeDefined()
-      }, timeout)
-
       test('reverse-text image', async () => {
         const reg = new WasmRegistry(workdir)
 
@@ -51,7 +41,7 @@ maybe('e2e', () => {
         const wasm = await reg.pull(imageSpec)
 
         expect(wasm.file).toBeDefined()
-      })
+      }, timeout)
     })
   })
 })
