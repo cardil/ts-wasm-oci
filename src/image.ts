@@ -1,7 +1,8 @@
 // See: https://regex101.com/r/cY9KFm/1
 const re = /^(?:([a-z0-9_.-]+)\/)?([a-z0-9_./-]+)(?::([a-z0-9_.-]+))?(?:@sha256:([a-f0-9]+))?$/
 
-export const WASM_MEDIA_TYPE = 'application/vnd.wasm.content.layer.v1+wasm'
+const OCI_WASM_MEDIA_TYPE = 'application/wasm'
+const WASM_MEDIA_TYPE = 'application/vnd.wasm.content.layer.v1+wasm'
 const WASM_MEDIA_TYPE_LEGACY = 'application/vnd.module.wasm.content.layer.v1+wasm'
 
 export class WasmImage {
@@ -71,5 +72,7 @@ export class Image {
 }
 
 export function isValidWasmType(type: string): boolean {
-  return type === WASM_MEDIA_TYPE || type === WASM_MEDIA_TYPE_LEGACY
+  return type === OCI_WASM_MEDIA_TYPE ||
+    type === WASM_MEDIA_TYPE ||
+    type === WASM_MEDIA_TYPE_LEGACY
 }

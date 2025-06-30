@@ -96,10 +96,11 @@ export class Registry {
     const opts: IRequestOptions = {
       acceptHeader: acceptedManifestType,
     }
-    const res = await this.client.get<Manifest>(`/v2/${repository}/manifests/${reference}`, opts)
+    const uri = `/v2/${repository}/manifests/${reference}`
+    const res = await this.client.get<Manifest>(uri, opts)
     const status = statusOf(res)
     if (!status.isSuccessful()) {
-      throw new InvalidRestResponse(status, 'Failed to get manifest')
+      throw new InvalidRestResponse(status, `Failed to get manifest for: ${uri}`)
     }
     return res.result
   }
